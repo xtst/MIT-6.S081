@@ -1,0 +1,6 @@
+make --dry-run --keep-going --print-directory
+make: Entering directory '/home/santo/Course/MIT-6.S081'
+ 
+make: 'kernel/kernel' is up to date.
+make: Leaving directory '/home/santo/Course/MIT-6.S081'
+ 
