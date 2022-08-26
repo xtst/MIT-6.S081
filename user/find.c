@@ -26,7 +26,7 @@ char *fmtname(char *path) {
 }
 
 void find(char *path, char *target) {
-	printf("======asdfasdf %s %s\n", path, target);
+	// printf("======asdfasdf %s %s\n", path, target);
 	char buf[512] = {0}, *p;
 	int fd;
 	// int  queue[100], r = 0;
@@ -73,7 +73,7 @@ void find(char *path, char *target) {
 		p = buf + strlen(buf);
 		*p++ = '/';
 		while (read(fd, &de, sizeof(de)) == sizeof(de)) {
-			printf("----PATH: _%s_  DIR: _%s_  TARGET: _%s_\n", path, fmtname(path), target);
+			// printf("----PATH: _%s_  DIR: _%s_  TARGET: _%s_\n", path, fmtname(path), target);
 			if (de.inum == 0)
 				continue;
 			memmove(p, de.name, DIRSIZ);
