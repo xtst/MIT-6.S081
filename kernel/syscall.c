@@ -132,4 +132,7 @@ void syscall(void) {
 			   p->pid, p->name, num);
 		p->trapframe->a0 = -1;
 	}
+	if (((p->systrace) >> (num)) & 1) {
+		printf("%d: syscall %s -> %d\n", p->pid, p->name, p->trapframe->a0);
+	}
 }
