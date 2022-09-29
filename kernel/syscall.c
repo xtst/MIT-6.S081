@@ -94,6 +94,7 @@ extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 extern uint64 sys_trace(void);
+extern uint64 sys_infotest(void);
 
 static uint64 (*syscalls[])(void) = {
 	[SYS_fork] sys_fork,
@@ -118,10 +119,10 @@ static uint64 (*syscalls[])(void) = {
 	[SYS_mkdir] sys_mkdir,
 	[SYS_close] sys_close,
 	[SYS_trace] sys_trace,
-	[SYS_infotest] SYS_infotest,
+	[SYS_infotest] sys_infotest,
 };
 
-static char sysnames[35][9] = {
+static char sysnames[40][9] = {
 	[SYS_fork] "fork",
 	[SYS_exit] "exit",
 	[SYS_wait] "wait",

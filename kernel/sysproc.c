@@ -100,13 +100,14 @@ sys_trace(void) {
 
 uint64
 sys_infotest(void) {
-	struct sysinfo *p;
-	if (argint(0, &p) == 0)
+	struct sysinfo p;
+	void *addr;
+	if (argint(0, addr) == 0)
 		return -1;
-	p->nproc = freeproc_num();
-	p->freemem = freemem();
+	p.nproc = freeproc_num();
+	p.freemem = freemem();
 
 	struct proc *process = myproc();
-	copyout(process->pagetable, p, p, sizeof(p));
+	copyout(process->pagetable, addr, (char *)(&p), sizeof(p));
 	return 0;
 }
