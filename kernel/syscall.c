@@ -118,6 +118,7 @@ static uint64 (*syscalls[])(void) = {
 	[SYS_mkdir] sys_mkdir,
 	[SYS_close] sys_close,
 	[SYS_trace] sys_trace,
+	[SYS_infotest] SYS_infotest,
 };
 
 static char sysnames[35][9] = {
@@ -143,6 +144,7 @@ static char sysnames[35][9] = {
 	[SYS_mkdir] "mkdir",
 	[SYS_close] "close",
 	[SYS_trace] "trace",
+	[SYS_infotest] "infotest",
 };
 
 void syscall(void) {
