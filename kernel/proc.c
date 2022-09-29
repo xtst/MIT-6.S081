@@ -652,15 +652,12 @@ void procdump(void) {
 	}
 }
 
-uint64 freeproc_num() {
+uint64 freeproc_num(void) {
 	struct proc *p;
 	uint64 ans = 0;
 	for (p = proc; p < &proc[NPROC]; p++) {
-		acquire(&p->lock);
-		if (p->state == UNUSED) {
+		if (p->state != UNUSED) {
 			ans++;
-		} else {
-			release(&p->lock);
 		}
 	}
 	return ans;

@@ -74,13 +74,15 @@ kalloc(void) {
 	return (void *)r;
 }
 
-uint64 freemem() {
+uint64 freemem(void) {
+	acquire(&kmem.lock);
 	uint64 res = 0;
 	struct run *r;
 	r = kmem.freelist;
 	while (r) {
-		res += 4096;
-		kmem.freelist = r->next;
+		res += PGSIZE;
+		r = r->next;
 	}
+	release(&kmem.lock);
 	return res;
 }
