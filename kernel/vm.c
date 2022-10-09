@@ -410,7 +410,6 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
 }
 
 void vmprint(pagetable_t pagetable) {
-<<<<<<< HEAD
 	printf("page table %p\n", pagetable);
 	vmprint_f(pagetable, 1);
 }
@@ -425,35 +424,6 @@ void vmprint_f(pagetable_t pagetable, int tiering) {
 
 		for (int i = 0; i < tiering - 1; i++) printf(".. ");
 		printf("..%d: pte %p pa %p\n", i, pte, child);
-		// printf("%d %d %d\n", PTE_R & PTE_W & PTE_X);
-		// if ((pte & (PTE_R & PTE_W & PTE_X)) == 0)
-		if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
-			vmprint_f((pagetable_t)child, tiering + 1);
-		}
-	}
-=======
-	// there are 2^9 = 512 PTEs in a page table.
-	printf("page table %p\n", pagetable);
-	// for (int i = 0; i < 512; i++) {
-	// pte_t pte = pagetable[i];
-	// uint64 child = PTE2PA(pte);
-	vmprint_f(pagetable, 1);
-	// if (!(pte & PTE_V)) continue;
-	// printf("..%d: pte %p pa %p", i, pte, child);
-	// }
->>>>>>> 06098e903e8d6b86554f76a96210665ae63d5e53
-}
-
-void vmprint_f(pagetable_t pagetable, int tiering) {
-	for (int i = 0; i < 512; i++) {
-		// printf("%d\n", i);
-		pte_t pte = pagetable[i];
-
-		if (!(pte & PTE_V)) continue;
-		uint64 child = PTE2PA(pte);
-
-		for (int i = 0; i < tiering - 1; i++) printf(".. ");
-		printf("..%d: pte %p pa %p\n", i, pte, child);
-		if (tiering <= 2) vmprint_f((pagetable_t)child, tiering + 1);
+		if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) vmprint_f((pagetable_t)child, tiering + 1);
 	}
 }
