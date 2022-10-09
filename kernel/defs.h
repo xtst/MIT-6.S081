@@ -180,7 +180,10 @@ int copyin(pagetable_t, char *, uint64, uint64);
 int copyinstr(pagetable_t, char *, uint64, uint64);
 void vmprint(pagetable_t);
 void vmprint_f(pagetable_t, int);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 06098e903e8d6b86554f76a96210665ae63d5e53
 // plic.c
 void plicinit(void);
 void plicinithart(void);
