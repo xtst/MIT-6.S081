@@ -204,7 +204,6 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
 	uvmunmap(pagetable, TRAPFRAME, 1, 0);
 	uvmfree(pagetable, sz);
 }
-
 // a user program that calls exec("/init")
 // od -t xC initcode
 uchar initcode[] = {
@@ -272,10 +271,12 @@ int fork(void) {
 
 	// Copy user memory from parent to child.
 	if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
+		if (kvmcopy(p->pagetable, p->pagetable_k, 0, p->sz) < 0) goto next;
 		freeproc(np);
 		release(&np->lock);
 		return -1;
 	}
+next:
 	np->sz = p->sz;
 
 	np->parent = p;

@@ -353,6 +353,9 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
+
+	return copyin_new(pagetable, dst, srcva, len);
+
 	uint64 n, va0, pa0;
 
 	while (len > 0) {
@@ -377,6 +380,8 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
+	// return copyinstr_new(pagetable, dst, srcva, max);
+
 	uint64 n, va0, pa0;
 	int got_null = 0;
 
@@ -442,7 +447,7 @@ pagetable_t procvminit() {
 	vmmap(pagetable, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
 	// CLINT
-	vmmap(pagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+	// vmmap(pagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 
 	// PLIC
 	vmmap(pagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
@@ -491,4 +496,54 @@ uint64 prockvmpa(pagetable_t pagetable, uint64 va) {
 		panic("prockvmpa");
 	pa = PTE2PA(*pte);
 	return pa + off;
+}
+
+// Given a parent process's page table, copy
+// its memory into a child's page table.
+// Copies both the page table and the
+// physical memory.
+// returns 0 on success, -1 on failure.
+// frees any allocated pages on failure.
+int kvmcopy(pagetable_t src, pagetable_t dst, uint64 start, uint64 sz) {
+	pte_t *pte;
+	uint64 pa, i;
+	uint flags;
+	char *mem;
+
+	for (i = PGROUNDUP(start); i < start + sz; i += PGSIZE) {
+		if ((pte = walk(src, i, 0)) == 0)
+			panic("kvmcopy: pte should exist");
+		if ((*pte & PTE_V) == 0)
+			panic("kvmcopy: page not present");
+		pa = PTE2PA(*pte);
+		flags = PTE_FLAGS(*pte);
+		if ((mem = kalloc()) == 0)
+			goto err;
+		memmove(mem, (char *)pa, PGSIZE);
+		if (mappages(dst, i, PGSIZE, (uint64)mem, flags) != 0) {
+			kfree(mem);
+			goto err;
+		}
+	}
+	return 0;
+
+err:
+	uvmunmap(dst, PGROUNDUP(start), (i - PGROUNDUP(start)) / PGSIZE, 0);
+	return -1;
+}
+
+// Deallocate user pages to bring the process size from oldsz to
+// newsz.  oldsz and newsz need not be page-aligned, nor does newsz
+// need to be less than oldsz.  oldsz can be larger than the actual
+// process size.  Returns the new process size.
+uint64
+kvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
+	if (newsz >= oldsz)
+		return oldsz;
+
+	if (PGROUNDUP(newsz) < PGROUNDUP(oldsz)) {
+		int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+		uvmunmap(pagetable, PGROUNDUP(newsz), npages, 0);
+	}
+	return newsz;
 }
