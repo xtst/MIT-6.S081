@@ -380,7 +380,8 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
-	// return copyinstr_new(pagetable, dst, srcva, max);
+
+	return copyinstr_new(pagetable, dst, srcva, max);
 
 	uint64 n, va0, pa0;
 	int got_null = 0;
@@ -508,7 +509,7 @@ int kvmcopy(pagetable_t src, pagetable_t dst, uint64 start, uint64 sz) {
 	pte_t *pte;
 	uint64 pa, i;
 	uint flags;
-	char *mem;
+	// char *mem;
 
 	for (i = PGROUNDUP(start); i < start + sz; i += PGSIZE) {
 		if ((pte = walk(src, i, 0)) == 0)
@@ -516,12 +517,12 @@ int kvmcopy(pagetable_t src, pagetable_t dst, uint64 start, uint64 sz) {
 		if ((*pte & PTE_V) == 0)
 			panic("kvmcopy: page not present");
 		pa = PTE2PA(*pte);
-		flags = PTE_FLAGS(*pte);
-		if ((mem = kalloc()) == 0)
-			goto err;
-		memmove(mem, (char *)pa, PGSIZE);
-		if (mappages(dst, i, PGSIZE, (uint64)mem, flags) != 0) {
-			kfree(mem);
+		flags = PTE_FLAGS(*pte) & (~PTE_U);
+		// if ((mem = kalloc()) == 0)
+		// 	goto err;
+		// memmove(mem, (char *)pa, PGSIZE);
+		if (mappages(dst, i, PGSIZE, pa, flags) != 0) {
+			// kfree(mem);
 			goto err;
 		}
 	}
