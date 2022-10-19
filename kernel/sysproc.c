@@ -88,8 +88,36 @@ sys_uptime(void) {
 	return xticks;
 }
 
-int sigalarm(int ticks, void (*handler)()) {
+uint64 sys_sigalarm(void) {
+	int n;
+	uint64 f;
+	if (argint(0, &n) < 0) return -1;
+	if (argaddr(0, &f) < 0) return -1;
+	struct proc *p = myproc();
+	// p->ticks = p->tick_num = n;
+	// p->in_func = 0;
+	// p->func = f;
+	// return 0;
+	// struct proc *p = myproc();
+	p->alarm_interval = n;
+	p->alarm_handler = f;
+	p->alarm_ticks = n;
+	return 0;
 }
 
-int sigreturn(void) {
+uint64 sys_sigreturn(void) {
+	// struct proc *p = myproc();
+	// if (!p->in_func) return -1;
+	// *(p->trapframe) = *(p->savedtr);
+	// p->ticks = 0;
+	// p->tick_num = 0;
+	// p->func = 0;
+	// p->in_func = 0;
+	// return 0;
+	// 将 trapframe 恢复到时钟中断之前的状态，恢复原本正在执行的程序流
+	struct proc *p = myproc();
+	// *p->trapframe = *p->savedtr;
+	memmove(p->trapframe, p->savedtr, PGSIZE);
+	p->alarm_goingoff = 0;
+	return 0;
 }
