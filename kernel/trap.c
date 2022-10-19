@@ -64,7 +64,6 @@ void usertrap(void) {
 	} else {
 		printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
 		printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-		// if (p->backtraced == 1) printf("%x", r_sepc());
 		p->killed = 1;
 	}
 
@@ -73,22 +72,20 @@ void usertrap(void) {
 
 	// give up the CPU if this is a timer interrupt.
 	if (which_dev == 2) {
-		if (p->in_func == 0 && p->interval != 0) {
-			++p->ticks;
-			if (p->ticks == p->interval) {
-				p->ticks = 0;
-				*p->saved_trapframe = *p->trapframe;
-				// memmove(p->saved_trapframe, p->trapframe, PGSIZE);
-				p->trapframe->epc = p->func;
-				p->in_func = 1;
+		if (p->interval != 0) {
+			if (--p->ticks <= 0) {
+				if (!p->in_func) {
+					p->ticks = p->interval;
+					*p->saved_trapframe = *p->trapframe;
+					p->trapframe->epc = (uint64)p->func;
+					p->in_func = 1;
+				}
 			}
 		}
+		yield();
 	}
 
 	usertrapret();
-}
-
-void copytrapframe() {
 }
 
 //

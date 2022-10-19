@@ -81,12 +81,12 @@ void test1() {
 		if (count >= 10)
 			break;
 		foo(i, &j);
-		if (i % 150000 == 0) printf("%d %d\n", i, j);
+		// if (i % 15000000 == 0) printf("%d %d\n", i, j);
 	}
 	if (count < 10) {
 		printf("DEBUG: count=%d\n", count);
 		printf("\ntest1 failed: too few calls to the handler\n");
-	} else if (/* i != j */ 0) {
+	} else if (i != j) {
 		printf("DEBUG: i=%d j=%d\n", i, j);
 		// the loop should have called foo() i times, and foo() should
 		// have incremented j once per call, so j should equal i.
