@@ -107,7 +107,7 @@ found:
 		release(&p->lock);
 		return 0;
 	}
-	if ((p->savedtr = (struct trapframe *)kalloc()) == 0) {
+	if ((p->saved_trapframe = (struct trapframe *)kalloc()) == 0) {
 		release(&p->lock);
 		return 0;
 	}
@@ -124,15 +124,6 @@ found:
 	memset(&p->context, 0, sizeof(p->context));
 	p->context.ra = (uint64)forkret;
 	p->context.sp = p->kstack + PGSIZE;
-
-	// p->ticks = 0;
-	// p->tick_num = 0;
-	// p->func = 0;
-	// p->in_func = 0;
-	p->alarm_interval = 0;
-	p->alarm_handler = 0;
-	p->alarm_ticks = 0;
-	p->alarm_goingoff = 0;
 	return p;
 }
 
@@ -144,9 +135,9 @@ freeproc(struct proc *p) {
 	if (p->trapframe)
 		kfree((void *)p->trapframe);
 	p->trapframe = 0;
-	if (p->savedtr)
-		kfree((void *)p->savedtr);
-	p->savedtr = 0;
+	if (p->saved_trapframe)
+		kfree((void *)p->saved_trapframe);
+	p->saved_trapframe = 0;
 	if (p->pagetable)
 		proc_freepagetable(p->pagetable, p->sz);
 	p->pagetable = 0;
@@ -158,18 +149,10 @@ freeproc(struct proc *p) {
 	p->killed = 0;
 	p->xstate = 0;
 	p->state = UNUSED;
-	// p->func = 0;
-	// p->ticks = 0;
-	// p->tick_num = 0;
-	// p->in_func = 0;
-	// p->alarm_interval = 0;
-	// p->alarm_handler = 0;
-	// p->alarm_ticks = 0;
-	// p->alarm_goingoff = 0;
-	p->alarm_interval = 0;
-	p->alarm_handler = 0;
-	p->alarm_ticks = 0;
-	p->alarm_goingoff = 0;
+	p->interval = 0;
+	p->ticks = 0;
+	p->in_func = 0;
+	p->func = 0;
 }
 
 // Create a user page table for a given process,
