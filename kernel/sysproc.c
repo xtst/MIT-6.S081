@@ -87,3 +87,9 @@ sys_uptime(void) {
 	release(&tickslock);
 	return xticks;
 }
+
+int sigalarm(int ticks, void (*handler)()) {
+}
+
+int sigreturn(void) {
+}
