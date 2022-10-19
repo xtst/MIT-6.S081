@@ -78,6 +78,7 @@ void usertrap(void) {
 			if (p->ticks == p->interval) {
 				p->ticks = 0;
 				*p->saved_trapframe = *p->trapframe;
+				// memmove(p->saved_trapframe, p->trapframe, PGSIZE);
 				p->trapframe->epc = p->func;
 				p->in_func = 1;
 			}
