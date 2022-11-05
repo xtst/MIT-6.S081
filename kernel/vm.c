@@ -288,7 +288,9 @@ void uvmfree(pagetable_t pagetable, uint64 sz) {
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
-int uvmcopy_lazy(pagetable_t old, pagetable_t new, uint64 sz) {
+int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
+	// printf("uvmcopy:\n");
+	// vmprint(old);
 	pte_t *pte;
 	uint64 pa, i;
 	uint flags;
@@ -300,14 +302,19 @@ int uvmcopy_lazy(pagetable_t old, pagetable_t new, uint64 sz) {
 		if ((*pte & PTE_V) == 0)
 			panic("uvmcopy: page not present");
 		pa = PTE2PA(*pte);
-		acquire(page_count_lock);
-		page_count[PA2COUNT(pa)]++;
+		// acquire(&page_count_lock);
+		// page_count[PA2COUNT(pa)]++;
+		// release(&page_count_lock);
 		*pte &= ~PTE_W;
 		*pte |= PTE_COW;
 		flags = PTE_FLAGS(*pte);
 		// if((mem = kalloc()) == 0)
 		//   goto err;
 		// memmove(mem, (char *)pa, PGSIZE);
+		acquire(&page_count_lock);
+		ref_page_count((void *)pa);
+		release(&page_count_lock);
+
 		if (mappages(new, i, PGSIZE, (uint64)pa, flags) != 0) {
 			// kfree(mem);
 			goto err;
@@ -320,39 +327,58 @@ err:
 	return -1;
 }
 
-int uvmcopy(pagetable_t old, pagetable_t new, uint64 va) {
+int uvmcopycow(uint64 va) {
+	// printf("uvmcopycow:\n");
+	// vmprint(pagetable);
+	pagetable_t pagetable = myproc()->pagetable;
 	pte_t *pte;
 	uint64 pa;
 	uint flags;
 	char *mem;
-	if ((pte = walk(old, va, 0)) == 0)
-		panic("uvmcopy: pte should exist");
-	if ((*pte & PTE_V) == 0)
-		panic("uvmcopy: page not present");
-	pa = PTE2PA(*pte);
-	*pte &= PTE_W;
-	*pte &= ~PTE_COW;
-	flags = PTE_FLAGS(*pte);
-	if ((mem = kalloc()) == 0)
-		goto err;
-	memmove(mem, (char *)pa, PGSIZE);
-	if (mappages(new, va, PGSIZE, (uint64)pa, flags) != 0) {
-		kfree(mem);
-		goto err;
-	}
-	return 0;
 
-err:
-	uvmunmap(new, 0, 1, 1);
-	return -1;
+	va = PGROUNDDOWN(va);
+	if ((pte = walk(pagetable, va, 0)) == 0)
+		panic("uvmcopycow: walk");
+	pa = PTE2PA(*pte);
+	if (PA2COUNT(pa) <= 1) {
+		// release(&page_count_lock);
+		// mem = (char *)pa;
+		// goto l1;
+		return pa;
+	}
+	if ((mem = kalloc()) == 0) {
+		// release(&page_count_lock);
+		return -1;
+	}
+	memmove((void *)mem, (void *)pa, PGSIZE);
+
+	acquire(&page_count_lock);
+	deref_page_count((void *)pa);
+	release(&page_count_lock);
+	// l1:
+	flags = PTE_FLAGS(*pte);
+	flags = (flags & ~PTE_COW) | PTE_W;
+	*pte = PA2PTE(mem) | flags;
+
+	// uvmunmap(pagetable, PGROUNDDOWN(va), 1, 0);
+	// if (mappages(pagetable, va, 1, (uint64)mem, flags) == -1) {
+	// 	panic("uvmcowcopy: mappages");
+	// }
+	// if (page_count[PA2COUNT(pa)] == 0) {
+	// 	release(&page_count_lock);
+	// 	kfree((void *)pa);
+	// 	return 0;
+	// }
+
+	return 0;
 }
 
-int islazy(struct proc *p, uint64 va) {
+int islazy(uint64 va) {
+	struct proc *p = myproc();
+	// printf("islazy:\n");
+	// vmprint(p->pagetable);
 	pte_t *pte;
-	if (va < p->sz)
-		return (((pte = walk(p->pagetable, va, 0)) != 0) && (*pte & PTE_V) && (*pte & PTE_COW));
-	else
-		return 0;
+	return va < p->sz && ((pte = walk(p->pagetable, va, 0)) != 0) && (*pte & PTE_V) && (*pte & PTE_COW);
 }
 
 // mark a PTE invalid for user access.
@@ -371,7 +397,8 @@ void uvmclear(pagetable_t pagetable, uint64 va) {
 // Return 0 on success, -1 on error.
 int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 	uint64 n, va0, pa0;
-
+	if (islazy(dstva))
+		uvmcopycow(dstva);
 	while (len > 0) {
 		va0 = PGROUNDDOWN(dstva);
 		pa0 = walkaddr(pagetable, va0);
@@ -451,4 +478,34 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
 	} else {
 		return -1;
 	}
+}
+
+// kernel/vm.c
+int pgtblprint(pagetable_t pagetable, int depth) {
+	// there are 2^9 = 512 PTEs in a page table.
+	for (int i = 0; i < 512; i++) {
+		pte_t pte = pagetable[i];
+		if (pte & PTE_V) { // 如果页表项有效
+			// 按格式打印页表项
+			printf("..");
+			for (int j = 0; j < depth; j++) {
+				printf(" ..");
+			}
+			printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+
+			// 如果该节点不是叶节点，递归打印其子节点。
+			if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+				// this PTE points to a lower-level page table.
+				uint64 child = PTE2PA(pte);
+				pgtblprint((pagetable_t)child, depth + 1);
+			}
+		}
+	}
+	return 0;
+}
+
+int vmprint(pagetable_t pagetable) {
+	return 0;
+	printf("page table %p\n", pagetable);
+	return pgtblprint(pagetable, 0);
 }

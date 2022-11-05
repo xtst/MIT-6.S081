@@ -362,7 +362,7 @@ sfence_vma() {
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
-#define PA2COUNT(pa) (((uint64)pa) >> (PGSHIFT))
+#define PA2COUNT(pa) (((uint64)pa - KERNBASE) >> (PGSHIFT))
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
