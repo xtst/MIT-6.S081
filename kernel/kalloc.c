@@ -11,13 +11,8 @@
 
 void freerange(void *pa_start, void *pa_end);
 
-struct spinlock page_count_lock;
-int page_count[(PHYSTOP) / PGSIZE];
-
 extern char end[]; // first address after kernel.
 				   // defined by kernel.ld.
-
-struct spinlock page_count_lock;
 
 struct run {
 	struct run *next;
@@ -28,17 +23,27 @@ struct {
 	struct run *freelist;
 } kmem;
 
+// For indexing the copy-on-write page reference count array
+
+struct spinlock page_count_lock;
+int pageref[(PHYSTOP - KERNBASE) >> PGSHIFT]; // reference count for each physical page
+// note:  reference counts are incremented on fork, not on mapping. this means that
+//        multiple mappings of the same physical page within a single process are only
+//        counted as one reference.
+//        this shouldn't be a problem, though. as there's no way for a user program to map
+//        a physical page twice within it's address space in xv6.
+
 void kinit() {
-	memset(page_count, 0, (PHYSTOP - KERNBASE) / PGSIZE);
 	initlock(&kmem.lock, "kmem");
-	initlock(&page_count_lock, "page count lock");
+	initlock(&page_count_lock, "COUNT");
 	freerange(end, (void *)PHYSTOP);
 }
 
 void freerange(void *pa_start, void *pa_end) {
 	char *p;
 	p = (char *)PGROUNDUP((uint64)pa_start);
-	for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE) { kfree(p); }
+	for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
+		kfree(p);
 }
 
 // Free the page of physical memory pointed at by v,
@@ -51,23 +56,15 @@ void kfree(void *pa) {
 	if (((uint64)pa % PGSIZE) != 0 || (char *)pa < end || (uint64)pa >= PHYSTOP)
 		panic("kfree");
 
-	// deref_page_count(pa);
 	acquire(&page_count_lock);
-	// page_count[PA2COUNT(pa)]--;
-	deref_page_count(pa);
-	if (page_count[PA2COUNT(pa)] > 0) {
-		release(&page_count_lock);
-		return;
+	if (--PA2COUNT(pa) <= 0) {
+		memset(pa, 1, PGSIZE);
+		r = (struct run *)pa;
+		acquire(&kmem.lock);
+		r->next = kmem.freelist;
+		kmem.freelist = r;
+		release(&kmem.lock);
 	}
-
-	// Fill with junk to catch dangling refs.
-	memset(pa, 1, PGSIZE);
-
-	r = (struct run *)pa;
-	acquire(&kmem.lock);
-	r->next = kmem.freelist;
-	kmem.freelist = r;
-	release(&kmem.lock);
 	release(&page_count_lock);
 }
 
@@ -86,20 +83,46 @@ kalloc(void) {
 
 	if (r) {
 		memset((char *)r, 5, PGSIZE); // fill with junk
-		page_count[PA2COUNT(r)] = 1;
-		// ref_page_count((void *)r);
+		// reference count for a physical page is always 1 after allocation.
+		// (no need to lock this operation)
+		PA2COUNT(r) = 1;
 	}
+
 	return (void *)r;
 }
 
-void ref_page_count(void *pa) {
-	// acquire(&page_count_lock);
-	page_count[PA2COUNT(pa)]++;
-	// release(&page_count_lock);
+void *cow_transfer(void *pa) {
+	acquire(&page_count_lock);
+
+	if (PA2COUNT(pa) <= 1) {
+		release(&page_count_lock);
+		return pa;
+	}
+
+	uint64 newpa = (uint64)kalloc();
+	if (newpa == 0) {
+		release(&page_count_lock);
+		return 0; // out of memory
+	}
+	memmove((void *)newpa, (void *)pa, PGSIZE);
+	PA2COUNT(pa)
+	--;
+
+	release(&page_count_lock);
+	return (void *)newpa;
 }
-void deref_page_count(void *pa) {
+
+// increase reference count of the page by one
+void krefpage(void *pa) {
+	acquire(&page_count_lock);
+	PA2COUNT(pa)
+	++;
+	release(&page_count_lock);
+}
+
+void kderefpage(void *pa) {
 	// acquire(&page_count_lock);
-	page_count[PA2COUNT(pa)]--;
+	PA2COUNT(pa)
+	--;
 	// release(&page_count_lock);
-	// return page_count[PA2COUNT(pa)];
 }

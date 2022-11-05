@@ -40,6 +40,31 @@ w_mepc(uint64 x) {
 				 : "r"(x));
 }
 
+// physical memory protection CSRs
+#define PMP_R (1L << 0)
+#define PMP_W (1L << 1)
+#define PMP_X (1L << 2)
+// naturally aligned power of two
+#define PMP_MATCH_NAPOT (3L << 3)
+
+// we only implement accessing one PMP register
+
+// write to the first 8 PMP configuration registers
+static inline void
+w_pmpcfg0(uint64 x) {
+	asm volatile("csrw pmpcfg0, %0"
+				 :
+				 : "r"(x));
+}
+
+// write to the address for PMP region 0
+static inline void
+w_pmpaddr0(uint64 x) {
+	asm volatile("csrw pmpaddr0, %0"
+				 :
+				 : "r"(x));
+}
+
 // Supervisor Status Register, sstatus
 
 #define SSTATUS_SPP (1L << 8)  // Previous mode, 1=Supervisor, 0=User
@@ -341,8 +366,8 @@ sfence_vma() {
 #define PTE_R (1L << 1)
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
-#define PTE_U (1L << 4) // 1 -> user can access
-#define PTE_COW (1L << 8)
+#define PTE_U (1L << 4)	  // 1 -> user can access
+#define PTE_COW (1L << 8) // copy-on-write page, use the reserved 8th bit of a pte flag.
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
@@ -362,7 +387,8 @@ sfence_vma() {
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
-#define PA2COUNT(pa) (((uint64)pa - KERNBASE) >> (PGSHIFT))
-
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+
+#define PA2COUNT_ID(p) (((p)-KERNBASE) >> PGSHIFT)
+#define PA2COUNT(p) pageref[PA2COUNT_ID((uint64)(p))]
