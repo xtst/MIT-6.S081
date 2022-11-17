@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.cpp": "cpp",
+        "buf.h": "c",
+        "tuple": "c"
+    }
+}
