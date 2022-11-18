@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.cpp": "cpp",
+        "param.h": "c",
+        "memlayout.h": "c",
+        "defs.h": "c",
+        "syscall.h": "c"
+    }
+}
