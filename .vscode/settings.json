@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "*.cpp": "cpp",
+        "*.tcc": "c",
+        "cmath": "c",
+        "functional": "c",
+        "random": "c",
+        "type_traits": "c",
+        "user.h": "c",
+        "defs.h": "c",
+        "fcntl.h": "c"
+    }
+}
