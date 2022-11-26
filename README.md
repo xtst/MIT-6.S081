@@ -5,7 +5,7 @@ MIT-6.S081-2020Fall
 
 # Resources
 
-official website: https://pdos.csail.mit.edu/6.828/2021/
+official website: https://pdos.csail.mit.edu/6.828/2020/
 
 chinese translation of 6.S081(20fall): https://mit-public-courses-cn-translatio.gitbook.io/mit6-s081/
 
